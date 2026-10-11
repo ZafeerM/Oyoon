@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Oyoon</string>
+    <string name="camera_permission_needed">Camera permission is needed to track your face.</string>
+    <string name="landmarker_failed">Face landmarker failed to start: %1$s</string>
+    <string name="status_format">%1$s · %2$d ms</string>
+</resources>
