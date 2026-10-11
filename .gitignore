@@ -1,0 +1,16 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+
+# Python
+__pycache__/
+.venv/
+.env
+
+# IDE / OS (per-user files)
+**/.idea/caches/
+**/.idea/workspace.xml
+**/.idea/shelf/
+.vscode/
+.DS_Store
