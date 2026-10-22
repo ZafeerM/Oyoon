@@ -20,8 +20,42 @@
         android:layout_gravity="top|start"
         android:layout_margin="16dp"
         android:background="#80000000"
+        android:fontFamily="monospace"
         android:padding="8dp"
         android:textColor="@android:color/white"
-        android:textSize="14sp" />
+        android:textSize="13sp" />
+
+    <!-- Debug-build controls: analysis resolution and landmark labels. -->
+    <LinearLayout
+        android:id="@+id/debug_controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#80000000"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/res_640"
+            style="@style/DebugButton"
+            android:text="@string/res_640" />
+
+        <Button
+            android:id="@+id/res_1280"
+            style="@style/DebugButton"
+            android:text="@string/res_1280" />
+
+        <Button
+            android:id="@+id/res_1920"
+            style="@style/DebugButton"
+            android:text="@string/res_1920" />
+
+        <Button
+            android:id="@+id/toggle_labels"
+            style="@style/DebugButton"
+            android:text="@string/labels" />
+    </LinearLayout>
 
 </FrameLayout>
