@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "oyoon"
 
-include(":app")
+include(":app", ":core", ":harness")

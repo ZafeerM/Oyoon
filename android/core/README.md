@@ -10,3 +10,8 @@ Used by `:app` on the phone and by `:harness` on a laptop. Sources are in `src/m
 - `measure/`: iris scale and measurements
 - `filter/`: One-Euro filter
 - `fit/`: fit scoring and ranking
+
+## Build
+
+Kotlin/JVM module (`org.jetbrains.kotlin.jvm`, bytecode target 17). No Android plugin, so `:core`
+cannot import Android classes by accident. Tests: `./gradlew :core:test`.

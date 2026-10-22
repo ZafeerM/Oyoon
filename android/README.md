@@ -2,7 +2,7 @@
 
 Gradle project for everything that runs on the JVM. **Open this folder in Android Studio.**
 
-`settings.gradle.kts` includes three modules:
+`settings.gradle.kts` includes three modules (all wired up):
 
 - `:app`: the Android app. Depends on `:core`.
 - `:core`: pure Kotlin maths, no Android. Depends only on Kotlin + kotlinx.serialization.
@@ -34,3 +34,18 @@ match the rest of the package name:
 - `app/src/main/kotlin/MainActivity.kt` has `package oyoon.app`
 - `app/src/main/kotlin/landmarker/OverlayView.kt` has `package oyoon.app.landmarker`
 - `core/src/main/kotlin/model/…` will have `package oyoon.core.model`
+
+## Tests and harness
+
+Run from this `android/` folder:
+
+```bash
+./gradlew :core:test
+```
+
+```bash
+./gradlew :harness:run
+```
+
+`:core` tests use JUnit 5 with `kotlin.test` assertions, in `core/src/test/kotlin/` (same folder
+convention as `src/main/kotlin/`). Test reports: `core/build/reports/tests/test/index.html`.
