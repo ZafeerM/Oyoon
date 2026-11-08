@@ -1,0 +1,50 @@
+[
+  {
+    "id": "f-sample-1",
+    "name": "SAMPLE 1 - replace with a real frame",
+    "lens_width_mm": 52,
+    "lens_height_mm": 40.0,
+    "bridge_mm": 18,
+    "temple_length_mm": 140,
+    "total_width_mm": 135.0,
+    "shape": "rectangle",
+    "material": "acetate",
+    "colour": "black",
+    "price_rs": 0,
+    "sprite_key": null,
+    "anchors": null,
+    "approved": true
+  },
+  {
+    "id": "f-sample-2",
+    "name": "SAMPLE 2 - replace with a real frame",
+    "lens_width_mm": 49,
+    "lens_height_mm": 42.0,
+    "bridge_mm": 21,
+    "temple_length_mm": 145,
+    "total_width_mm": 132.0,
+    "shape": "round",
+    "material": "metal",
+    "colour": "gold",
+    "price_rs": 0,
+    "sprite_key": null,
+    "anchors": null,
+    "approved": true
+  },
+  {
+    "id": "f-sample-3",
+    "name": "SAMPLE 3 - replace with a real frame",
+    "lens_width_mm": 54,
+    "lens_height_mm": 38.0,
+    "bridge_mm": 17,
+    "temple_length_mm": 145,
+    "total_width_mm": 140.0,
+    "shape": "aviator",
+    "material": "metal",
+    "colour": "silver",
+    "price_rs": 0,
+    "sprite_key": null,
+    "anchors": null,
+    "approved": true
+  }
+]

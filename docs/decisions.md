@@ -4,6 +4,30 @@ Every decision, newest first, with its date and reason.
 
 ---
 
+## 2026-11-08 — Backend stack details (S2-BE-1, S2-BE-2)
+
+**Decisions:**
+
+- **No object storage in docker-compose yet.** MinIO no longer publishes Docker images
+  (`minio/minio` is gone from Docker Hub). Nothing in Sprint 2 uses storage, so compose runs only
+  `api` and `postgres`. An S3-compatible store is chosen with the vendor-upload / worker task.
+- **No worker service yet.** It is added with the sprite-pipeline task.
+- **Frame sizes:** `lens_width_mm`, `bridge_mm`, `temple_length_mm` are integers (printed on the
+  arm); `lens_height_mm` and `total_width_mm` are decimals (measured with a ruler).
+- **`GET /frames` and `GET /frames/{id}` only return frames with `approved = true`.**
+- **`sprite_url` = `SPRITE_BASE_URL` + `/` + `sprite_key`**, or null when there is no sprite.
+- **Seeding is manual** (`python -m app.seed`), not run at container start, so fake or test data
+  never lands in a database by accident. Migrations do run at start.
+- **Placeholder data:** `contracts/fixtures/catalogue.json` holds 3 rows named "SAMPLE … replace
+  with a real frame" and `contracts/tolerance-bands.json` 2 rows with source "PLACEHOLDER". QA and
+  Backend replace them with 15–20 real frames and real bands.
+- **Tests run on SQLite** (JSONB falls back to JSON), so they need no Docker; `docker compose up`
+  is the Postgres check.
+
+**Reason:** Keep Sprint 2 to what the tasks need, and avoid shipping an unmaintained image.
+
+---
+
 ## 2026-11-08 — Validity gate start values and rules (S2-CORE-2)
 
 **Decision:** `GateConfig` defaults (`android/core/src/main/kotlin/gate/Gate.kt`):

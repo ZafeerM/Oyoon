@@ -2,7 +2,10 @@
 
 from fastapi import FastAPI
 
+from app.api.catalogue import router as catalogue_router
+
 app = FastAPI(title="Oyoon API")
+app.include_router(catalogue_router)
 
 
 @app.get("/health")
