@@ -52,7 +52,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import oyoon.app.landmarker.FaceLandmarkerHelper
+import oyoon.app.landmarker.FrameSampler
 import oyoon.app.landmarker.OverlayView
+import oyoon.app.live.LiveMeasurer
 import oyoon.core.geometry.Point2
 import oyoon.core.measure.irisDiameterPxA
 import oyoon.core.measure.irisDiameterPxB
@@ -81,6 +83,11 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
     @Volatile private var resolution = AnalysisResolution.VGA
     @Volatile private var actualResolution = "?"
     private val fpsCounter = FpsCounter()
+
+    /** Gate + live PD. Only touched on the MediaPipe result thread. */
+    private val liveMeasurer = LiveMeasurer()
+    /** Set on the main thread to ask the result thread to clear [liveMeasurer]. */
+    @Volatile private var resetMeasurer = false
 
     private val requestCameraPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -184,6 +191,7 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
         resolution = option
         highlightSelection()
         fpsCounter.reset()
+        resetMeasurer = true
         cameraProvider?.let { bindCameraUseCases(it) }
     }
 
@@ -258,6 +266,13 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
     }
 
     override fun onResults(resultBundle: FaceLandmarkerHelper.ResultBundle) {
+        if (resetMeasurer) {
+            liveMeasurer.reset()
+            resetMeasurer = false
+        }
+        FrameSampler.from(resultBundle)
+            ?.takeIf { it.transformMatrix != null }
+            ?.let(liveMeasurer::process)
         val fps = fpsCounter.tick()
         val debugText = if (isDebugBuild) debugStatus(resultBundle, fps) else null
         runOnUiThread {

@@ -26,6 +26,7 @@ import android.graphics.Matrix
 import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.ImageProxy
+import com.google.mediapipe.framework.image.BitmapExtractor
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -147,6 +148,7 @@ class FaceLandmarkerHelper(
                 inferenceTimeMs = SystemClock.uptimeMillis() - result.timestampMs(),
                 inputImageWidth = input.width,
                 inputImageHeight = input.height,
+                inputImage = BitmapExtractor.extract(input),
             )
         )
     }
@@ -160,6 +162,8 @@ class FaceLandmarkerHelper(
         val inferenceTimeMs: Long,
         val inputImageWidth: Int,
         val inputImageHeight: Int,
+        /** The upright, mirrored frame MediaPipe processed (new bitmap per frame). */
+        val inputImage: Bitmap,
     )
 
     interface LandmarkerListener {
