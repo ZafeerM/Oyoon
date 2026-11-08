@@ -1,0 +1,35 @@
+# Local stack: docker compose up --build  (from server/)
+# Storage (S3-compatible) and the worker are added with their own tasks; see docs/decisions.md.
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://oyoon:oyoon@postgres:5432/oyoon
+      CONTRACTS_DIR: /contracts
+    volumes:
+      # Catalogue and tolerance bands for: docker compose exec api python -m app.seed
+      - ../contracts:/contracts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: oyoon
+      POSTGRES_PASSWORD: oyoon
+      POSTGRES_DB: oyoon
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oyoon -d oyoon"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
