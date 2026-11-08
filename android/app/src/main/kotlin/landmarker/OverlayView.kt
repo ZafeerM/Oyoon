@@ -29,6 +29,7 @@ import android.view.View
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import oyoon.core.model.Landmarks
 import kotlin.math.hypot
 import kotlin.math.max
 
@@ -111,22 +112,15 @@ class OverlayView(context: Context, attrs: AttributeSet?) : View(context, attrs)
                 canvas.drawPoint(x(landmark), y(landmark), pointPaint)
             }
 
-            if (face.size >= Iris.LANDMARK_COUNT) {
-                for (center in Iris.CENTERS) {
-                    // Circle radius: mean of the two diameters (side-side, top-bottom) / 2.
-                    val c = face[center]
-                    val horizontal = hypot(
-                        x(face[center + 1]) - x(face[center + 3]),
-                        y(face[center + 1]) - y(face[center + 3]),
-                    )
-                    val vertical = hypot(
-                        x(face[center + 2]) - x(face[center + 4]),
-                        y(face[center + 2]) - y(face[center + 4]),
-                    )
-                    canvas.drawCircle(x(c), y(c), (horizontal + vertical) / 4f, irisCirclePaint)
-                    for (i in center..center + 4) {
-                        canvas.drawCircle(x(face[i]), y(face[i]), IRIS_DOT_RADIUS * density, irisPointPaint)
-                    }
+            if (face.size >= Landmarks.COUNT) {
+                for ((centre, h1, h2) in IRISES) {
+                    // Circle through the horizontal edge pair, the same pair :core measures.
+                    val c = face[centre]
+                    val diameter = hypot(x(face[h1]) - x(face[h2]), y(face[h1]) - y(face[h2]))
+                    canvas.drawCircle(x(c), y(c), diameter / 2f, irisCirclePaint)
+                }
+                for (i in Landmarks.IRIS_ALL) {
+                    canvas.drawCircle(x(face[i]), y(face[i]), IRIS_DOT_RADIUS * density, irisPointPaint)
                 }
             }
 
@@ -142,7 +136,14 @@ class OverlayView(context: Context, attrs: AttributeSet?) : View(context, attrs)
     companion object {
         private const val IRIS_DOT_RADIUS = 2.5f
 
+        /** Centre and horizontal edge pair of each iris. */
+        private val IRISES = listOf(
+            Triple(Landmarks.IRIS_A_CENTRE, Landmarks.IRIS_A_H1, Landmarks.IRIS_A_H2),
+            Triple(Landmarks.IRIS_B_CENTRE, Landmarks.IRIS_B_H1, Landmarks.IRIS_B_H2),
+        )
+
         /** Landmarks labelled in debug mode: both irises, nose bridge, face sides. */
-        val LABELLED_LANDMARKS: List<Int> = (468..477) + listOf(168, 234, 454)
+        val LABELLED_LANDMARKS: List<Int> = Landmarks.IRIS_ALL +
+            listOf(Landmarks.NOSE_BRIDGE, Landmarks.FACE_LEFT, Landmarks.FACE_RIGHT)
     }
 }

@@ -52,8 +52,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import oyoon.app.landmarker.FaceLandmarkerHelper
-import oyoon.app.landmarker.Iris
 import oyoon.app.landmarker.OverlayView
+import oyoon.core.geometry.Point2
+import oyoon.core.measure.irisDiameterPxA
+import oyoon.core.measure.irisDiameterPxB
+import oyoon.core.model.FrameSample
+import oyoon.core.model.Landmarks
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -288,12 +292,16 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
             R.string.debug_resolution, resolution.width, resolution.height, actualResolution
         )
         val face = bundle?.result?.faceLandmarks()?.firstOrNull()
-        val iris = if (face != null && face.size >= Iris.LANDMARK_COUNT) {
-            val w = bundle.inputImageWidth
-            val h = bundle.inputImageHeight
-            val first = Iris.widthPx(face, Iris.FIRST_CENTER, w, h)
-            val second = Iris.widthPx(face, Iris.SECOND_CENTER, w, h)
-            getString(R.string.debug_iris, first, second, (first + second) / 2f)
+        val iris = if (face != null && face.size >= Landmarks.COUNT) {
+            // Same pixel conversion and iris formula :core uses for measurement.
+            val sample = FrameSample.fromNormalized(
+                face.map { Point2(it.x().toDouble(), it.y().toDouble()) },
+                bundle.inputImageWidth,
+                bundle.inputImageHeight,
+            )
+            val a = irisDiameterPxA(sample)
+            val b = irisDiameterPxB(sample)
+            getString(R.string.debug_iris, a, b, (a + b) / 2.0)
         } else {
             getString(R.string.debug_no_face)
         }

@@ -11,6 +11,6 @@
     <string name="labels">Labels</string>
     <string name="debug_timing">%1$s · %2$d ms · %3$.1f fps</string>
     <string name="debug_resolution">asked %1$d×%2$d · got %3$s</string>
-    <string name="debug_iris">iris 468 %1$.1f px · 473 %2$.1f px · mean %3$.1f px</string>
+    <string name="debug_iris">iris A %1$.1f px · B %2$.1f px · mean %3$.1f px</string>
     <string name="debug_no_face">no face</string>
 </resources>

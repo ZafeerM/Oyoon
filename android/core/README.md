@@ -15,3 +15,6 @@ Used by `:app` on the phone and by `:harness` on a laptop. Sources are in `src/m
 
 Kotlin/JVM module (`org.jetbrains.kotlin.jvm`, bytecode target 17). No Android plugin, so `:core`
 cannot import Android classes by accident. Tests: `./gradlew :core:test`.
+
+Test fixtures: `src/test/kotlin/fixtures/SyntheticSnapshot.kt` builds the guide's worked example
+(irises 50 px, iris centres 300 px apart) until QA publishes fixtures in `contracts/fixtures/`.
