@@ -13,7 +13,7 @@ Adapted files (each keeps the original licence header plus a note describing wha
 
 - `src/main/kotlin/MainActivity.kt` (camera setup from `CameraFragment.kt`)
 - `src/main/kotlin/landmarker/FaceLandmarkerHelper.kt`
-- `src/main/kotlin/landmarker/OverlayView.kt`
+- `src/main/kotlin/ui/FaceOverlay.kt` (from `OverlayView.kt`)
 
 ## Face landmarker model
 

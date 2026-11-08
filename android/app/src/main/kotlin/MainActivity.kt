@@ -17,8 +17,8 @@
  * google-ai-edge/mediapipe-samples examples/face_landmarker/android. Merged
  * into a single Activity; removed navigation, settings sheet, blendshapes
  * list and back camera; uses ResolutionSelector instead of the deprecated
- * target aspect ratio; added debug controls for analysis resolution, landmark
- * labels, FPS and iris width.
+ * target aspect ratio; UI moved to Compose with a validity-gated live PD and
+ * debug controls for analysis resolution, landmark labels, FPS and iris width.
  */
 package oyoon.app
 
@@ -30,14 +30,10 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
-import android.view.View
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -46,38 +42,41 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
-import androidx.core.view.updatePadding
 import oyoon.app.landmarker.FaceLandmarkerHelper
 import oyoon.app.landmarker.FrameSampler
-import oyoon.app.landmarker.OverlayView
 import oyoon.app.live.LiveMeasurer
-import oyoon.core.geometry.Point2
+import oyoon.app.ui.AnalysisResolution
+import oyoon.app.ui.ChipStatus
+import oyoon.app.ui.MeasureScreen
+import oyoon.app.ui.MeasureUiState
+import oyoon.core.gate.GateResult
+import oyoon.core.geometry.HeadPose
 import oyoon.core.measure.irisDiameterPxA
 import oyoon.core.measure.irisDiameterPxB
 import oyoon.core.model.FrameSample
-import oyoon.core.model.Landmarks
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListener {
 
-    private lateinit var viewFinder: PreviewView
-    private lateinit var overlay: OverlayView
-    private lateinit var status: TextView
-    private lateinit var resolutionButtons: Map<AnalysisResolution, Button>
-    private lateinit var labelsButton: Button
+    private lateinit var previewView: PreviewView
 
     /** Single thread that creates, runs and closes the landmarker (needed for GPU). */
     private lateinit var backgroundExecutor: ExecutorService
     private lateinit var faceLandmarkerHelper: FaceLandmarkerHelper
     private var cameraProvider: ProcessCameraProvider? = null
 
-    /** Debug overlay (FPS, resolution, iris px, controls) only in debuggable builds. */
+    /** Debug tools (FPS, resolution, iris px, labels) only in debuggable builds. */
     private var isDebugBuild = false
+
+    // Compose state, written on the main thread only.
+    private var uiState by mutableStateOf(MeasureUiState())
+    private var showLabels by mutableStateOf(false)
+    private var resolutionState by mutableStateOf(AnalysisResolution.VGA)
 
     // Read on the MediaPipe result thread, written on the main thread.
     @Volatile private var resolution = AnalysisResolution.VGA
@@ -91,25 +90,33 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
 
     private val requestCameraPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) startCamera() else status.setText(R.string.camera_permission_needed)
+            if (granted) startCamera()
+            else uiState = uiState.copy(message = getString(R.string.camera_permission_needed))
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
-        viewFinder = findViewById(R.id.view_finder)
-        overlay = findViewById(R.id.overlay)
-        status = findViewById(R.id.status)
         isDebugBuild = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        previewView = PreviewView(this)
 
         savedInstanceState?.let {
             resolution = AnalysisResolution.entries[it.getInt(KEY_RESOLUTION, 0)]
-            overlay.showLabels = it.getBoolean(KEY_LABELS, false)
+            resolutionState = resolution
+            showLabels = it.getBoolean(KEY_LABELS, false)
         }
 
-        applyWindowInsets()
-        if (isDebugBuild) setUpDebugControls()
+        setContent {
+            MeasureScreen(
+                state = uiState,
+                previewView = previewView,
+                isDebugBuild = isDebugBuild,
+                showLabels = showLabels,
+                resolution = resolutionState,
+                onResolutionSelected = ::selectResolution,
+                onToggleLabels = { showLabels = !showLabels },
+            )
+        }
 
         backgroundExecutor = Executors.newSingleThreadExecutor()
         faceLandmarkerHelper = FaceLandmarkerHelper(applicationContext, this)
@@ -124,7 +131,7 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt(KEY_RESOLUTION, resolution.ordinal)
-        outState.putBoolean(KEY_LABELS, overlay.showLabels)
+        outState.putBoolean(KEY_LABELS, showLabels)
     }
 
     override fun onResume() {
@@ -135,7 +142,8 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
     override fun onPause() {
         super.onPause()
         backgroundExecutor.execute { faceLandmarkerHelper.close() }
-        overlay.clear()
+        resetMeasurer = true
+        uiState = uiState.copy(face = null, status = ChipStatus.Searching)
     }
 
     override fun onDestroy() {
@@ -143,55 +151,14 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
         backgroundExecutor.shutdown()
     }
 
-    /** Keeps the status label and the bottom bar clear of system bars and cutouts. */
-    private fun applyWindowInsets() {
-        val baseMargin = (16 * resources.displayMetrics.density).toInt()
-        val controls = findViewById<View>(R.id.debug_controls)
-        val controlsPadding = controls.paddingBottom
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            status.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = bars.top + baseMargin
-                leftMargin = bars.left + baseMargin
-            }
-            controls.updatePadding(bottom = bars.bottom + controlsPadding)
-            insets
-        }
-    }
-
-    private fun setUpDebugControls() {
-        findViewById<View>(R.id.debug_controls).visibility = View.VISIBLE
-        resolutionButtons = mapOf(
-            AnalysisResolution.VGA to findViewById(R.id.res_640),
-            AnalysisResolution.HD to findViewById(R.id.res_1280),
-            AnalysisResolution.FULL_HD to findViewById(R.id.res_1920),
-        )
-        resolutionButtons.forEach { (option, button) ->
-            button.setOnClickListener { selectResolution(option) }
-        }
-        labelsButton = findViewById(R.id.toggle_labels)
-        labelsButton.setOnClickListener {
-            overlay.showLabels = !overlay.showLabels
-            highlightSelection()
-        }
-        highlightSelection()
-    }
-
-    private fun highlightSelection() {
-        resolutionButtons.forEach { (option, button) ->
-            button.alpha = if (option == resolution) 1f else DIMMED_ALPHA
-        }
-        labelsButton.alpha = if (overlay.showLabels) 1f else DIMMED_ALPHA
-    }
-
     private fun selectResolution(option: AnalysisResolution) {
         if (option == resolution) return
         resolution = option
-        highlightSelection()
+        resolutionState = option
         fpsCounter.reset()
+        // Iris sizes change with resolution, so old history and PD frames no longer apply.
         resetMeasurer = true
+        uiState = uiState.copy(face = null, status = ChipStatus.Searching, pdMm = null)
         cameraProvider?.let { bindCameraUseCases(it) }
     }
 
@@ -227,7 +194,7 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
                 ResolutionSelector.Builder().setAspectRatioStrategy(aspectRatioStrategy).build()
             )
             .build()
-            .also { it.surfaceProvider = viewFinder.surfaceProvider }
+            .also { it.surfaceProvider = previewView.surfaceProvider }
 
         val imageAnalysis = ImageAnalysis.Builder()
             .setResolutionSelector(
@@ -258,10 +225,11 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
             // Buffer size as delivered by the sensor (landscape), e.g. 640x480.
             actualResolution = imageAnalysis.resolutionInfo?.resolution
                 ?.let { "${it.width}×${it.height}" } ?: "?"
-            overlay.clear()
         } catch (e: Exception) {
             Log.e(TAG, "Camera binding failed", e)
-            status.text = getString(R.string.landmarker_failed, e.message ?: "camera unavailable")
+            uiState = uiState.copy(
+                message = getString(R.string.landmarker_failed, e.message ?: "camera unavailable")
+            )
         }
     }
 
@@ -270,64 +238,65 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
             liveMeasurer.reset()
             resetMeasurer = false
         }
-        FrameSampler.from(resultBundle)
-            ?.takeIf { it.transformMatrix != null }
-            ?.let(liveMeasurer::process)
+        val sample = FrameSampler.from(resultBundle)?.takeIf { it.transformMatrix != null }
+        val update = sample?.let(liveMeasurer::process)
         val fps = fpsCounter.tick()
-        val debugText = if (isDebugBuild) debugStatus(resultBundle, fps) else null
+        val debugLines = if (isDebugBuild) debugLines(resultBundle, sample, fps) else emptyList()
+        val status = when (val gate = update?.gate) {
+            null -> ChipStatus.Searching
+            GateResult.Accepted -> ChipStatus.Accepted
+            is GateResult.Rejected -> ChipStatus.Rejected(gate.reason)
+        }
         runOnUiThread {
-            overlay.setResults(
-                resultBundle.result,
-                resultBundle.inputImageWidth,
-                resultBundle.inputImageHeight,
+            uiState = uiState.copy(
+                face = resultBundle.result,
+                imageWidth = resultBundle.inputImageWidth,
+                imageHeight = resultBundle.inputImageHeight,
+                status = status,
+                // Only accepted frames change the PD; otherwise keep the last value.
+                pdMm = update?.pdMm ?: uiState.pdMm,
+                debugLines = debugLines,
             )
-            if (debugText != null) status.text = debugText
         }
     }
 
     override fun onEmpty() {
         val fps = fpsCounter.tick()
-        val debugText = if (isDebugBuild) debugStatus(null, fps) else null
+        val debugLines = if (isDebugBuild) debugLines(null, null, fps) else emptyList()
         runOnUiThread {
-            overlay.clear()
-            if (debugText != null) status.text = debugText
+            uiState = uiState.copy(face = null, status = ChipStatus.Searching, debugLines = debugLines)
         }
     }
 
     override fun onError(error: String) {
         Log.e(TAG, error)
-        runOnUiThread { status.text = getString(R.string.landmarker_failed, error) }
+        runOnUiThread { uiState = uiState.copy(message = getString(R.string.landmarker_failed, error)) }
     }
 
-    /** Builds the 3-line debug label: timing, resolution, iris width. */
-    private fun debugStatus(bundle: FaceLandmarkerHelper.ResultBundle?, fps: Float): String {
+    /** Debug text: timing, resolution, iris width, head pose and brightness. */
+    private fun debugLines(
+        bundle: FaceLandmarkerHelper.ResultBundle?,
+        sample: FrameSample?,
+        fps: Float,
+    ): List<String> {
         val delegate = faceLandmarkerHelper.delegate?.name ?: "?"
-        val timing = getString(R.string.debug_timing, delegate, bundle?.inferenceTimeMs ?: 0L, fps)
-        val res = getString(
-            R.string.debug_resolution, resolution.width, resolution.height, actualResolution
+        val lines = mutableListOf(
+            getString(R.string.debug_timing, delegate, bundle?.inferenceTimeMs ?: 0L, fps),
+            getString(R.string.debug_resolution, resolution.width, resolution.height, actualResolution),
         )
-        val face = bundle?.result?.faceLandmarks()?.firstOrNull()
-        val iris = if (face != null && face.size >= Landmarks.COUNT) {
-            // Same pixel conversion and iris formula :core uses for measurement.
-            val sample = FrameSample.fromNormalized(
-                face.map { Point2(it.x().toDouble(), it.y().toDouble()) },
-                bundle.inputImageWidth,
-                bundle.inputImageHeight,
-            )
+        if (sample == null) {
+            lines += getString(R.string.debug_no_face)
+        } else {
             val a = irisDiameterPxA(sample)
             val b = irisDiameterPxB(sample)
-            getString(R.string.debug_iris, a, b, (a + b) / 2.0)
-        } else {
-            getString(R.string.debug_no_face)
+            lines += getString(R.string.debug_iris, a, b, (a + b) / 2.0)
+            sample.transformMatrix?.let(HeadPose::fromMatrix)?.let { pose ->
+                lines += getString(
+                    R.string.debug_pose, pose.yawDeg, pose.pitchDeg, pose.rollDeg, sample.brightness ?: Double.NaN
+                )
+            }
         }
-        return "$timing\n$res\n$iris"
-    }
-
-    /** Analysis resolutions selectable from the debug bar, in landscape (sensor) terms. */
-    private enum class AnalysisResolution(val width: Int, val height: Int, val aspectRatio: Int) {
-        VGA(640, 480, AspectRatio.RATIO_4_3),
-        HD(1280, 720, AspectRatio.RATIO_16_9),
-        FULL_HD(1920, 1080, AspectRatio.RATIO_16_9),
+        return lines
     }
 
     /** Processed frames per second, averaged over roughly one-second windows. */
@@ -362,6 +331,5 @@ class MainActivity : ComponentActivity(), FaceLandmarkerHelper.LandmarkerListene
         private const val TAG = "MainActivity"
         private const val KEY_RESOLUTION = "analysis_resolution"
         private const val KEY_LABELS = "show_labels"
-        private const val DIMMED_ALPHA = 0.45f
     }
 }

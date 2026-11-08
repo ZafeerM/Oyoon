@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -25,6 +26,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        compose = true
+    }
+
     androidResources {
         // The .task model is loaded by MediaPipe straight from assets; keep it uncompressed.
         noCompress += "task"
@@ -34,7 +39,11 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)

@@ -4,6 +4,22 @@
     <string name="camera_permission_needed">Camera permission is needed to track your face.</string>
     <string name="landmarker_failed">Face landmarker failed to start: %1$s</string>
 
+    <!-- Status chip -->
+    <string name="chip_searching">Looking for your face</string>
+    <string name="chip_accepted">Measuring…</string>
+    <string name="chip_yaw">Turn to face the camera</string>
+    <string name="chip_pitch">Keep your head level</string>
+    <string name="chip_roll">Don\'t tilt your head</string>
+    <string name="chip_too_far">Move closer</string>
+    <string name="chip_iris_mismatch">Keep both eyes visible</string>
+    <string name="chip_unstable">Hold still</string>
+    <string name="chip_too_dark">Find more light</string>
+
+    <!-- Live PD -->
+    <string name="pd_label">PD</string>
+    <string name="pd_value">%1$.1f mm</string>
+    <string name="pd_none">— mm</string>
+
     <!-- Debug overlay -->
     <string name="res_640">640×480</string>
     <string name="res_1280">1280×720</string>
@@ -12,5 +28,6 @@
     <string name="debug_timing">%1$s · %2$d ms · %3$.1f fps</string>
     <string name="debug_resolution">asked %1$d×%2$d · got %3$s</string>
     <string name="debug_iris">iris A %1$.1f px · B %2$.1f px · mean %3$.1f px</string>
+    <string name="debug_pose">yaw %1$.1f° · pitch %2$.1f° · roll %3$.1f° · light %4$.0f</string>
     <string name="debug_no_face">no face</string>
 </resources>
